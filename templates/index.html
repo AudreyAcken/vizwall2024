@@ -46,12 +46,32 @@
     <div id="imageContainer"></div>
 
     <script>
-        let currentPrompt = '';
-        const allWords = ['enchanted', 'forest', 'mysterious', 'castle', 'river', 'sky', 'dark', 'light'];
+        let basePrompt = 'A scene with';
+        let promptComponents = {
+            'adjectives': [],
+            'subjects': [],
+            'environments': []
+        };
+        const words = {
+            'adjectives': ['enchanted', 'dark', 'light', 'tranquil'],
+            'subjects': ['castle', 'river', 'sky', 'flowers'],
+            'environments': ['forest', 'spring', 'night']
+        };
 
-        function addWordToPrompt(word) {
-            currentPrompt += ' ' + word;
+        function addWordToPrompt(word, category) {
+            promptComponents[category].push(word);
+            updatePrompt();
             generate();
+        }
+
+        function updatePrompt() {
+            let components = [];
+            Object.keys(promptComponents).forEach(key => {
+                if (promptComponents[key].length > 0) {
+                    components.push(promptComponents[key].join(' '));
+                }
+            });
+            currentPrompt = `${basePrompt} ${components.join(', ')}`;
         }
 
         function generate() {
@@ -63,11 +83,11 @@
 
             const newImage = new Image();
             newImage.onload = () => {
-                newImage.style.opacity = 1; // Fade in new image
-                placeWords(); // Place words after the image is visible
+                newImage.style.opacity = 1;
+                placeWords();
             };
-            newImage.style.opacity = 0; // Start transparent until loaded
-            newImage.src = ''; // Force clear to avoid flash of old content
+            newImage.style.opacity = 0;
+            newImage.src = ''; // Clear image source
 
             fetch('/generate_image', {
                 method: 'POST',
@@ -78,25 +98,38 @@
             })
             .then(response => response.json())
             .then(data => {
-                newImage.src = data.image_url; // Set new source
-                imageContainer.appendChild(newImage); // Append new image
+                newImage.src = data.image_url;
+                imageContainer.appendChild(newImage);
             })
             .catch(error => console.error('Error:', error));
         }
 
         function placeWords() {
-            const imageContainer = document.getElementById('imageContainer');
-            imageContainer.querySelectorAll('.floatingWord').forEach(e => e.remove()); // Clear existing words
+            const existingWords = document.querySelectorAll('.floatingWord');
+            existingWords.forEach(word => word.remove()); // Remove all existing words
 
-            shuffle(allWords).slice(0, 4).forEach(word => { // Display 4 random words
+            const flatWords = Object.values(words).flat();
+            shuffle(flatWords); // Shuffle the flattened array of all words
+            const selectedWords = flatWords.slice(0, 6); // Select the first 6 words after shuffle
+
+            selectedWords.forEach(word => {
                 const span = document.createElement('span');
                 span.textContent = word;
                 span.className = 'floatingWord';
                 span.style.top = `${Math.random() * (window.innerHeight - 20)}px`;
                 span.style.left = `${Math.random() * (window.innerWidth - 20)}px`;
-                span.onclick = () => addWordToPrompt(word);
-                document.body.appendChild(span); // Append to body to ensure visibility
+                span.onclick = () => addWordToPrompt(word, getCategory(word));
+                document.body.appendChild(span);
             });
+        }
+
+        function getCategory(word) {
+            for (const category in words) {
+                if (words[category].includes(word)) {
+                    return category;
+                }
+            }
+            return '';
         }
 
         function shuffle(array) {
