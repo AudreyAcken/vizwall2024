@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Storytelling</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background: #333; /* Dark background for better contrast */
+        }
+        #imageContainer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #222; /* Dark background before image loads */
+        }
+        img {
+            max-width: 100%;
+            max-height: 100%;
+            transition: opacity 1s ease-in-out;
+            opacity: 0; /* Start with the image transparent */
+        }
+        .floatingWord {
+            position: absolute;
+            padding: 5px 10px;
+            background-color: rgba(255, 255, 255, 0.75);
+            color: #333;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            transition: opacity 1s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <div id="imageContainer"></div>
+
+    <script>
+        let currentPrompt = '';
+        const allWords = ['enchanted', 'forest', 'mysterious', 'castle', 'river', 'sky', 'dark', 'light'];
+
+        function addWordToPrompt(word) {
+            currentPrompt += ' ' + word;
+            generate();
+        }
+
+        function generate() {
+            const imageContainer = document.getElementById('imageContainer');
+            const oldImage = imageContainer.querySelector('img');
+            if (oldImage) {
+                oldImage.remove();
+            }
+
+            const newImage = new Image();
+            newImage.onload = () => {
+                newImage.style.opacity = 1; // Fade in new image
+                placeWords(); // Place words after the image is visible
+            };
+            newImage.style.opacity = 0; // Start transparent until loaded
+            newImage.src = ''; // Force clear to avoid flash of old content
+
+            fetch('/generate_image', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ prompt: currentPrompt.trim() })
+            })
+            .then(response => response.json())
+            .then(data => {
+                newImage.src = data.image_url; // Set new source
+                imageContainer.appendChild(newImage); // Append new image
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function placeWords() {
+            const imageContainer = document.getElementById('imageContainer');
+            imageContainer.querySelectorAll('.floatingWord').forEach(e => e.remove()); // Clear existing words
+
+            shuffle(allWords).slice(0, 4).forEach(word => { // Display 4 random words
+                const span = document.createElement('span');
+                span.textContent = word;
+                span.className = 'floatingWord';
+                span.style.top = `${Math.random() * (window.innerHeight - 20)}px`;
+                span.style.left = `${Math.random() * (window.innerWidth - 20)}px`;
+                span.onclick = () => addWordToPrompt(word);
+                document.body.appendChild(span); // Append to body to ensure visibility
+            });
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        window.onload = () => placeWords(); // Initialize words on load
+    </script>
+</body>
+</html>
